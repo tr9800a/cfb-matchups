@@ -1,0 +1,516 @@
+{
+  "schema_version": "1.0",
+  "generated_as_of": "2024-12-01",
+  "notes": [
+    "This file provides two layers: (1) alias resolution for conference names over time, and (2) lineage events (renames, splits, merges) that allow the downstream app to attribute historical stats to modern conferences in a controlled way.",
+    "Splits are represented as events with an effective_year and an explicit member list when available."
+  ],
+  "conferences": {
+    "SEC": {
+      "id": "sec",
+      "current_name": "Southeastern Conference",
+      "aliases": [
+        {
+          "name": "SEC",
+          "valid_from": 1932,
+          "valid_to": null
+        },
+        {
+          "name": "Southeastern Conference",
+          "valid_from": 1932,
+          "valid_to": null
+        }
+      ],
+      "lineage_events": [
+        {
+          "type": "split_from",
+          "source_conference": "Southern Conference",
+          "effective_year": 1932,
+          "note": "SEC formed by schools leaving the Southern Conference.",
+          "member_filter": [
+            "Alabama",
+            "Auburn",
+            "Florida",
+            "Georgia",
+            "Georgia Tech",
+            "Kentucky",
+            "LSU",
+            "Ole Miss",
+            "Mississippi State",
+            "Sewanee",
+            "Tennessee",
+            "Tulane",
+            "Vanderbilt"
+          ]
+        }
+      ]
+    },
+    "ACC": {
+      "id": "acc",
+      "current_name": "Atlantic Coast Conference",
+      "aliases": [
+        {
+          "name": "ACC",
+          "valid_from": 1953,
+          "valid_to": null
+        },
+        {
+          "name": "Atlantic Coast Conference",
+          "valid_from": 1953,
+          "valid_to": null
+        }
+      ],
+      "lineage_events": [
+        {
+          "type": "split_from",
+          "source_conference": "Southern Conference",
+          "effective_year": 1953,
+          "note": "ACC formed by schools leaving the Southern Conference.",
+          "member_filter": [
+            "Clemson",
+            "Duke",
+            "Maryland",
+            "North Carolina",
+            "NC State",
+            "South Carolina",
+            "Wake Forest"
+          ]
+        }
+      ]
+    },
+    "Big Ten": {
+      "id": "bigten",
+      "current_name": "Big Ten Conference",
+      "aliases": [
+        {
+          "name": "Big Ten",
+          "valid_from": 1917,
+          "valid_to": null
+        },
+        {
+          "name": "Western Conference",
+          "valid_from": 1896,
+          "valid_to": 1916
+        },
+        {
+          "name": "Big Nine",
+          "valid_from": 1899,
+          "valid_to": 1911
+        }
+      ],
+      "lineage_events": [
+        {
+          "type": "rename",
+          "from": "Western Conference",
+          "to": "Big Ten",
+          "effective_year": 1917,
+          "note": "Name adopted after reaching 10 members (per doc narrative)."
+        }
+      ]
+    },
+    "Pac-12": {
+      "id": "pac12",
+      "current_name": "Pac-12 Conference",
+      "aliases": [
+        {
+          "name": "Pac-12",
+          "valid_from": 2011,
+          "valid_to": 2024
+        },
+        {
+          "name": "Pac-10",
+          "valid_from": 1978,
+          "valid_to": 2011
+        },
+        {
+          "name": "Pac-8",
+          "valid_from": 1968,
+          "valid_to": 1978
+        },
+        {
+          "name": "AAWU",
+          "valid_from": 1959,
+          "valid_to": 1968
+        },
+        {
+          "name": "Pacific Coast Conference",
+          "valid_from": 1915,
+          "valid_to": 1959
+        },
+        {
+          "name": "PCC",
+          "valid_from": 1915,
+          "valid_to": 1959
+        }
+      ],
+      "lineage_events": [
+        {
+          "type": "dissolve_and_reform",
+          "from": "Pacific Coast Conference",
+          "to": "AAWU",
+          "effective_year": 1959,
+          "note": "PCC dissolved; AAWU formed by remaining schools."
+        },
+        {
+          "type": "rename",
+          "from": "AAWU",
+          "to": "Pac-8",
+          "effective_year": 1968,
+          "note": "Name adopted 1968."
+        },
+        {
+          "type": "expand_and_rename",
+          "from": "Pac-8",
+          "to": "Pac-10",
+          "effective_year": 1978,
+          "note": "Arizona and Arizona State added."
+        },
+        {
+          "type": "expand_and_rename",
+          "from": "Pac-10",
+          "to": "Pac-12",
+          "effective_year": 2011,
+          "note": "Colorado and Utah added (per doc)."
+        }
+      ]
+    },
+    "Big 12": {
+      "id": "big12",
+      "current_name": "Big 12 Conference",
+      "aliases": [
+        {
+          "name": "Big 12",
+          "valid_from": 1996,
+          "valid_to": null
+        },
+        {
+          "name": "Big 12 Conference",
+          "valid_from": 1996,
+          "valid_to": null
+        }
+      ],
+      "lineage_events": [
+        {
+          "type": "merge",
+          "sources": [
+            "Big Eight",
+            "Southwest Conference"
+          ],
+          "effective_year": 1996,
+          "note": "Big 12 formed from Big Eight + four SWC schools (per doc)."
+        },
+        {
+          "type": "rename_lineage",
+          "from": "Missouri Valley Intercollegiate Athletic Association",
+          "to": "Big Eight",
+          "effective_year": 1907,
+          "note": "Lineage note only; Big Eight naming evolved as Big Six/Seven/Eight."
+        }
+      ]
+    },
+    "American Athletic": {
+      "id": "americanathletic",
+      "current_name": "American Athletic",
+      "aliases": [
+        {
+          "name": "American Athletic",
+          "valid_from": null,
+          "valid_to": null
+        }
+      ],
+      "lineage_events": []
+    },
+    "Big Sky": {
+      "id": "bigsky",
+      "current_name": "Big Sky",
+      "aliases": [
+        {
+          "name": "Big Sky",
+          "valid_from": null,
+          "valid_to": null
+        }
+      ],
+      "lineage_events": []
+    },
+    "C-USA": {
+      "id": "cusa",
+      "current_name": "C-USA",
+      "aliases": [
+        {
+          "name": "C-USA",
+          "valid_from": null,
+          "valid_to": null
+        }
+      ],
+      "lineage_events": []
+    },
+    "CAA Football": {
+      "id": "caafootball",
+      "current_name": "CAA Football",
+      "aliases": [
+        {
+          "name": "CAA Football",
+          "valid_from": null,
+          "valid_to": null
+        }
+      ],
+      "lineage_events": []
+    },
+    "CIAA": {
+      "id": "ciaa",
+      "current_name": "CIAA",
+      "aliases": [
+        {
+          "name": "CIAA",
+          "valid_from": null,
+          "valid_to": null
+        }
+      ],
+      "lineage_events": []
+    },
+    "Conference Carolinas": {
+      "id": "conferencecarolinas",
+      "current_name": "Conference Carolinas",
+      "aliases": [
+        {
+          "name": "Conference Carolinas",
+          "valid_from": null,
+          "valid_to": null
+        }
+      ],
+      "lineage_events": []
+    },
+    "G-MAC": {
+      "id": "gmac",
+      "current_name": "G-MAC",
+      "aliases": [
+        {
+          "name": "G-MAC",
+          "valid_from": null,
+          "valid_to": null
+        }
+      ],
+      "lineage_events": []
+    },
+    "GLIAC": {
+      "id": "gliac",
+      "current_name": "GLIAC",
+      "aliases": [
+        {
+          "name": "GLIAC",
+          "valid_from": null,
+          "valid_to": null
+        }
+      ],
+      "lineage_events": []
+    },
+    "GLVC": {
+      "id": "glvc",
+      "current_name": "GLVC",
+      "aliases": [
+        {
+          "name": "GLVC",
+          "valid_from": null,
+          "valid_to": null
+        }
+      ],
+      "lineage_events": []
+    },
+    "Ivy League": {
+      "id": "ivyleague",
+      "current_name": "Ivy League",
+      "aliases": [
+        {
+          "name": "Ivy League",
+          "valid_from": null,
+          "valid_to": null
+        }
+      ],
+      "lineage_events": []
+    },
+    "MAC": {
+      "id": "mac",
+      "current_name": "MAC",
+      "aliases": [
+        {
+          "name": "MAC",
+          "valid_from": null,
+          "valid_to": null
+        }
+      ],
+      "lineage_events": []
+    },
+    "MEAC": {
+      "id": "meac",
+      "current_name": "MEAC",
+      "aliases": [
+        {
+          "name": "MEAC",
+          "valid_from": null,
+          "valid_to": null
+        }
+      ],
+      "lineage_events": []
+    },
+    "MIAA (D-III)": {
+      "id": "miaadiii",
+      "current_name": "MIAA (D-III)",
+      "aliases": [
+        {
+          "name": "MIAA (D-III)",
+          "valid_from": null,
+          "valid_to": null
+        }
+      ],
+      "lineage_events": []
+    },
+    "MVFC": {
+      "id": "mvfc",
+      "current_name": "MVFC",
+      "aliases": [
+        {
+          "name": "MVFC",
+          "valid_from": null,
+          "valid_to": null
+        }
+      ],
+      "lineage_events": []
+    },
+    "Mountain West": {
+      "id": "mountainwest",
+      "current_name": "Mountain West",
+      "aliases": [
+        {
+          "name": "Mountain West",
+          "valid_from": null,
+          "valid_to": null
+        }
+      ],
+      "lineage_events": []
+    },
+    "NEC": {
+      "id": "nec",
+      "current_name": "NEC",
+      "aliases": [
+        {
+          "name": "NEC",
+          "valid_from": null,
+          "valid_to": null
+        }
+      ],
+      "lineage_events": []
+    },
+    "OVC-Big South": {
+      "id": "ovcbigsouth",
+      "current_name": "OVC-Big South",
+      "aliases": [
+        {
+          "name": "OVC-Big South",
+          "valid_from": null,
+          "valid_to": null
+        }
+      ],
+      "lineage_events": []
+    },
+    "Patriot League": {
+      "id": "patriotleague",
+      "current_name": "Patriot League",
+      "aliases": [
+        {
+          "name": "Patriot League",
+          "valid_from": null,
+          "valid_to": null
+        }
+      ],
+      "lineage_events": []
+    },
+    "Pioneer": {
+      "id": "pioneer",
+      "current_name": "Pioneer",
+      "aliases": [
+        {
+          "name": "Pioneer",
+          "valid_from": null,
+          "valid_to": null
+        }
+      ],
+      "lineage_events": []
+    },
+    "SWAC": {
+      "id": "swac",
+      "current_name": "SWAC",
+      "aliases": [
+        {
+          "name": "SWAC",
+          "valid_from": null,
+          "valid_to": null
+        }
+      ],
+      "lineage_events": []
+    },
+    "Southern Conference": {
+      "id": "southernconference",
+      "current_name": "Southern Conference",
+      "aliases": [
+        {
+          "name": "Southern Conference",
+          "valid_from": null,
+          "valid_to": null
+        }
+      ],
+      "lineage_events": []
+    },
+    "Southland": {
+      "id": "southland",
+      "current_name": "Southland",
+      "aliases": [
+        {
+          "name": "Southland",
+          "valid_from": null,
+          "valid_to": null
+        }
+      ],
+      "lineage_events": []
+    },
+    "Sun Belt": {
+      "id": "sunbelt",
+      "current_name": "Sun Belt",
+      "aliases": [
+        {
+          "name": "Sun Belt",
+          "valid_from": null,
+          "valid_to": null
+        }
+      ],
+      "lineage_events": []
+    },
+    "UAC": {
+      "id": "uac",
+      "current_name": "UAC",
+      "aliases": [
+        {
+          "name": "UAC",
+          "valid_from": null,
+          "valid_to": null
+        }
+      ],
+      "lineage_events": []
+    }
+  },
+  "alias_resolution_rules": [
+    {
+      "alias": "Southern Conference",
+      "resolves_to": "Southern Conference",
+      "valid_from": 1921,
+      "valid_to": null,
+      "note": "SoCon continues after SEC (1932) and ACC (1953) splits."
+    },
+    {
+      "alias": "Southern Conference",
+      "resolves_to": "SEC",
+      "valid_from": 1921,
+      "valid_to": 1931,
+      "note": "Only when counting pre-1932 SoCon stats for the specific SEC-member subset; requires member_filter in event graph."
+    }
+  ]
+}

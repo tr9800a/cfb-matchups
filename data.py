@@ -4,12 +4,16 @@ import time
 import cfbd
 import config
 import csv
+import pandas as pd
+import re
 from datetime import datetime
 
-TEAMS_CACHE_FILE = config.TEAMS_CACHE_FILE
-GAMES_CACHE_FILE = config.CACHE_FILE
-MEMBERSHIP_FILE = config.MEMBERSHIP_FILE
-LINEAGE_FILE = config.LINEAGE_FILE
+# --- FILE PATHS ---
+TEAMS_CACHE_FILE = getattr(config, 'TEAMS_CACHE_FILE', 'cfb_teams_cache.json')
+GAMES_CACHE_FILE = getattr(config, 'CACHE_FILE', 'cfb_games_cache.json')
+MEMBERSHIP_FILE = 'membership_full.csv'
+LINEAGE_FILE = 'conference_lineage_and_aliases_enhanced.json'
+STATS_FILE = 'season_stats.json'
 
 def get_api_client():
     conf = cfbd.Configuration()
@@ -21,170 +25,151 @@ def load_games_data():
     if os.path.exists(GAMES_CACHE_FILE):
         with open(GAMES_CACHE_FILE, 'r') as f:
             return json.load(f)
-
-    print("[INFO] No games cache found. Downloading full history...")
-    client = get_api_client()
-    api = cfbd.GamesApi(client)
-
-    all_games = []
-    # Note: Using config years
-    for year in range(config.START_YEAR, config.END_YEAR):
-        print(f"   Fetching games for {year}...", end='\r')
-        try:
-            games = api.get_games(year=year)
-            for g in games:
-                if (g.home_team and g.away_team and 
-                    g.home_points is not None and g.away_points is not None):
-                    all_games.append({
-                        'season': g.season,
-                        'date': str(g.start_date),
-                        'home': g.home_team,
-                        'away': g.away_team,
-                        'home_score': g.home_points,
-                        'away_score': g.away_points
-                    })
-            time.sleep(0.1)
-        except Exception as e:
-            print(f"\n[WARN] Failed to fetch {year}: {e}")
-    
-    with open(GAMES_CACHE_FILE, 'w') as f:
-        json.dump(all_games, f)
-    return all_games
-
-def load_teams_data():
-    """
-    Downloads and caches the full list of teams (FBS, FCS, D2, D3).
-    This is required for the --div filters to work.
-    """
-    if os.path.exists(TEAMS_CACHE_FILE):
-        with open(TEAMS_CACHE_FILE, 'r') as f:
-            return json.load(f)
-            
-    print("[INFO] No teams cache found. Downloading full Team Database...")
-    client = get_api_client()
-    api = cfbd.TeamsApi(client)
-    
-    try:
-        # get_teams() fetches all teams (FBS, FCS, D2, D3)
-        teams = api.get_teams()
-        
-        teams_data = []
-        for t in teams:
-            teams_data.append({
-                'school': t.school,
-                'conference': t.conference,
-                'classification': t.classification, # fbs, fcs, ii, iii
-                'division': t.division
-            })
-            
-        with open(TEAMS_CACHE_FILE, 'w') as f:
-            json.dump(teams_data, f)
-            
-        print(f"[SUCCESS] Cached {len(teams_data)} teams.")
-        return teams_data
-        
-    except Exception as e:
-        print(f"[ERROR] Failed to download teams: {e}")
-        return []
+    return [] 
 
 def load_lineage_data():
-    """Loads the conference aliases and lineage JSON."""
-    if not os.path.exists(LINEAGE_FILE):
-        print(f"[WARN] Lineage file '{LINEAGE_FILE}' not found. Using empty map.")
-        return {}
+    if not os.path.exists(LINEAGE_FILE): return {}
     with open(LINEAGE_FILE, 'r') as f:
         return json.load(f)
 
-def load_membership_data():
-    """Loads the historical membership CSV."""
-    membership = []
-    if not os.path.exists(MEMBERSHIP_FILE):
-        print(f"[WARN] Membership file '{MEMBERSHIP_FILE}' not found.")
-        return []
+def load_season_stats():
+    """Loads the Win/Loss/Rank database."""
+    if not os.path.exists(STATS_FILE):
+        return {}
+    with open(STATS_FILE, 'r') as f:
+        return json.load(f)
+
+def get_team_stats(team, year, stats_db):
+    """Helper to safely get stats for a specific team-year"""
+    key = f"{team}|{year}"
+    return stats_db.get(key, {'w': 0, 'l': 0, 't': 0, 'pct': 0.0, 'rank': None})
+
+# --- NORMALIZATION ---
+def normalize_conf_name(name):
+    """
+    Aggressively normalizes conference names to a common ID.
+    1. Lowercase
+    2. Replace number-words with digits (eight -> 8) ANYWHERE in string
+    3. Remove all non-alphanumeric characters
+    """
+    if not isinstance(name, str): return ""
+    s = name.lower()
+    
+    replacements = {
+        'one': '1', 'two': '2', 'three': '3', 'four': '4', 'five': '5',
+        'six': '6', 'seven': '7', 'eight': '8', 'nine': '9', 'ten': '10',
+        'eleven': '11', 'twelve': '12'
+    }
+    for word, digit in replacements.items():
+        s = s.replace(word, digit)
         
-    with open(MEMBERSHIP_FILE, 'r', encoding='utf-8-sig') as f:
-        reader = csv.DictReader(f)
-        for row in reader:
-            try:
-                # Normalize keys
-                clean_row = {k.strip().lower(): v.strip() for k, v in row.items()}
-                
-                team = clean_row.get('school') or clean_row.get('team')
-                conf = clean_row.get('conference')
-                
-                start_raw = clean_row.get('start_year') or clean_row.get('start year')
-                end_raw = clean_row.get('end_year') or clean_row.get('end year')
-                
-                start_year = int(start_raw) if start_raw else 1869
-                end_year = int(end_raw) if end_raw else 9999
-                
-                membership.append({
-                    'team': team,
-                    'conference': conf,
-                    'start': start_year,
-                    'end': end_year
-                })
-            except ValueError:
-                continue 
-    return membership
+    s = "".join(c for c in s if c.isalnum())
+    return s
+
+def load_membership_data():
+    if not os.path.exists(MEMBERSHIP_FILE): return pd.DataFrame()
+    try:
+        df = pd.read_csv(MEMBERSHIP_FILE)
+        df.columns = [c.strip().lower() for c in df.columns]
+        # Pre-compute normalized names for speed
+        df['norm_name'] = df['conference_name'].apply(normalize_conf_name)
+        return df
+    except Exception:
+        return pd.DataFrame()
+
+def load_teams_data():
+    if os.path.exists(TEAMS_CACHE_FILE):
+        with open(TEAMS_CACHE_FILE, 'r') as f:
+            return json.load(f)
+    return []
 
 # --- SMART LOOKUP ENGINE ---
 
-def resolve_conference_name(user_input, lineage_data):
+def resolve_conference_key(user_input, lineage_data):
     if not user_input: return None
-    raw = user_input.strip()
+    target_norm = normalize_conf_name(user_input)
+    conferences = lineage_data.get('conferences', {})
     
-    if raw in lineage_data:
-        return raw
-        
-    for official, info in lineage_data.items():
-        aliases = []
-        if isinstance(info, list): aliases = info
-        elif isinstance(info, dict): aliases = info.get('aliases', []) + info.get('lineage', [])
-        
-        if raw.lower() == official.lower():
-            return official
-        for alias in aliases:
-            if raw.lower() == alias.lower():
-                return official
+    # Check Keys
+    for key in conferences:
+        if normalize_conf_name(key) == target_norm:
+            return key
+            
+    # Check Aliases
+    for key, info in conferences.items():
+        for alias in info.get('aliases', []):
+            name = alias.get('name', '') if isinstance(alias, dict) else str(alias)
+            if normalize_conf_name(name) == target_norm:
+                return key
                 
-    return raw 
+    return user_input
 
 def get_teams_in_conference_range(conf_input, start_year, end_year):
-    lineage = load_lineage_data()
-    membership = load_membership_data()
+    lineage_data = load_lineage_data()
+    df = load_membership_data()
     
-    target_conf = resolve_conference_name(conf_input, lineage)
-    print(f"[INFO] Resolving '{conf_input}' -> '{target_conf}' for range {start_year}-{end_year}")
+    if df.empty:
+        print("[WARN] Membership DB empty. Please run build_membership_db.py")
+        return set()
 
-    found_teams = set()
+    # 1. Pseudo-Conference / Division Support
+    norm_input = normalize_conf_name(conf_input)
+    div_map = {'fbs': 'fbs', 'fcs': 'fcs', 'd2': 'ii', 'ii': 'ii', 'd3': 'iii', 'iii': 'iii'}
     
-    for entry in membership:
-        entry_conf = entry['conference']
-        is_match = (entry_conf.lower() == target_conf.lower())
+    if norm_input in div_map:
+        target_class = div_map[norm_input]
+        print(f"[INFO] Detected Division Filter: '{target_class.upper()}'")
+        all_teams = load_teams_data()
+        class_teams = set()
+        for t in all_teams:
+            if t.get('classification') and t['classification'].lower() == target_class:
+                class_teams.add(t['school'])
         
-        if is_match:
-            # Check overlap
-            if (entry['start'] <= end_year) and (start_year <= entry['end']):
-                found_teams.add(entry['team'])
+        # Only return teams active in the DB for the requested years
+        mask_year = (df['year'] >= start_year) & (df['year'] <= end_year)
+        active_teams = set(df[mask_year]['school'].unique())
+        return class_teams.intersection(active_teams)
+
+    # 2. Lineage Lookup
+    official_key = resolve_conference_key(conf_input, lineage_data)
+    print(f"[INFO] Resolving '{conf_input}' -> '{official_key}'")
+    
+    found_teams = set()
+    conf_config = lineage_data.get('conferences', {}).get(official_key, {})
+    predecessors = conf_config.get('predecessors', [])
+    target_norm = normalize_conf_name(official_key)
+    
+    for year in range(start_year, end_year + 1):
+        # A. Direct Membership
+        mask_year = (df['year'] == year)
+        mask_direct = (df['norm_name'] == target_norm)
+        found_teams.update(df[mask_year & mask_direct]['school'].unique())
+        
+        # B. Lineage Membership (Predecessors)
+        for pred in predecessors:
+            if year < pred['end_year']:
+                pred_norm = normalize_conf_name(pred['name'])
+                mask_pred = (df['norm_name'] == pred_norm)
+                candidates = set(df[mask_year & mask_pred]['school'].unique())
                 
+                # C. Filters (Partial Merge Logic)
+                if 'filter_teams' in pred and pred['filter_teams']:
+                    allowed = set(pred['filter_teams'])
+                    found_teams.update({t for t in candidates if t in allowed})
+                else:
+                    found_teams.update(candidates)
+
     if not found_teams:
-        print(f"[WARN] No historical members found for '{target_conf}' between {start_year}-{end_year}.")
+        print(f"[WARN] No members found for '{official_key}' (or ancestors) in {start_year}-{end_year}.")
         
     return found_teams
-
-def get_team_filter(divisions):
-    # This was the function causing the error because load_teams_data was missing
-    all_teams = load_teams_data()
     
-    if not divisions or 'all' in divisions:
-        return None
-        
+def get_team_filter(divisions):
+    all_teams = load_teams_data()
+    if not divisions or 'all' in divisions: return None
     valid_set = set()
     divisions_lower = [d.lower() for d in divisions]
-    
     for t in all_teams:
         if t.get('classification') and t['classification'].lower() in divisions_lower:
             valid_set.add(t['school'])
-            
     return valid_set

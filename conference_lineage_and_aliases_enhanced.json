@@ -1,0 +1,111 @@
+{
+  "schema_version": "1.1",
+  "generated_as_of": "2024-12-01",
+  "conferences": {
+    "SEC": {
+      "id": "sec",
+      "current_name": "Southeastern Conference",
+      "aliases": [
+        {"name": "SEC"},
+        {"name": "Southeastern Conference"}
+      ],
+      "predecessors": [
+        {
+          "name": "Southern Conference",
+          "end_year": 1932,
+          "mode": "split",
+          "filter_teams": ["Alabama", "Auburn", "Florida", "Georgia", "Georgia Tech", "Kentucky", "LSU", "Ole Miss", "Mississippi State", "Sewanee", "Tennessee", "Tulane", "Vanderbilt"]
+        }
+      ]
+    },
+    "ACC": {
+      "id": "acc",
+      "current_name": "Atlantic Coast Conference",
+      "aliases": [
+        {"name": "ACC"},
+        {"name": "Atlantic Coast Conference"}
+      ],
+      "predecessors": [
+        {
+          "name": "Southern Conference",
+          "end_year": 1953,
+          "mode": "split",
+          "filter_teams": ["Clemson", "Duke", "Maryland", "North Carolina", "NC State", "South Carolina", "Wake Forest"]
+        }
+      ]
+    },
+    "Big Ten": {
+      "id": "bigten",
+      "current_name": "Big Ten Conference",
+      "aliases": [
+        {"name": "Big Ten"},
+        {"name": "Western Conference"},
+        {"name": "Big Nine"}
+      ],
+      "predecessors": [
+        {
+          "name": "Western Conference",
+          "end_year": 1917,
+          "mode": "rename"
+        }
+      ]
+    },
+    "Pac-12": {
+      "id": "pac12",
+      "current_name": "Pac-12 Conference",
+      "aliases": [
+        {"name": "Pac-12"},
+        {"name": "Pac-10"},
+        {"name": "Pac-8"},
+        {"name": "AAWU"},
+        {"name": "Pacific Coast Conference"},
+        {"name": "PCC"}
+      ],
+      "predecessors": [
+        {
+          "name": "Pac-10",
+          "end_year": 2011,
+          "mode": "rename"
+        },
+        {
+          "name": "Pac-8",
+          "end_year": 1978,
+          "mode": "rename"
+        },
+        {
+          "name": "AAWU",
+          "end_year": 1968,
+          "mode": "rename"
+        },
+        {
+          "name": "Pacific Coast Conference",
+          "end_year": 1959,
+          "mode": "rename"
+        }
+      ]
+    },
+    "Big 12": {
+      "id": "big12",
+      "current_name": "Big 12 Conference",
+      "aliases": [
+        {"name": "Big 12"},
+        {"name": "Big 12 Conference"}
+      ],
+      "predecessors": [
+        {
+          "name": "Big Eight",
+          "end_year": 1996,
+          "mode": "merge",
+          "note": "Complete absorption of Big 8 history"
+        },
+        {
+          "name": "Southwest Conference",
+          "end_year": 1996,
+          "mode": "merge_subset",
+          "filter_teams": ["Texas", "Texas A&M", "Baylor", "Texas Tech"],
+          "note": "Only these 4 schools carried SWC history into Big 12"
+        }
+      ]
+    }
+  }
+}

@@ -9,6 +9,16 @@ from collections import defaultdict
 GAMES_FILE = getattr(config, 'CACHE_FILE', 'cfb_games_cache.json')
 STATS_FILE = 'season_stats.json'
 
+# Priority list of polls to capture (in order of prestige/relevance)
+POLL_PRIORITY = [
+    'AP Top 25',
+    'Coaches Poll',
+    'FCS Coaches Poll', 
+    'STATS Perform FCS Top 25',
+    'AFCA Division II Coaches Poll',
+    'D3football.com Top 25'
+]
+
 def get_api_client():
     conf = cfbd.Configuration()
     client = cfbd.ApiClient(conf)
@@ -16,11 +26,7 @@ def get_api_client():
     return client
 
 def calculate_records(games):
-    """
-    Scans game history to calculate (Wins, Losses, Ties) for every Team-Year.
-    Returns: dict { (Team, Year): {'w': 0, 'l': 0, 't': 0} }
-    """
-    print(f"   Calculing W-L records from {len(games)} games...")
+    print("   Calculing W-L records...")
     records = defaultdict(lambda: {'w': 0, 'l': 0, 't': 0})
     
     for g in games:
@@ -43,41 +49,47 @@ def calculate_records(games):
     return records
 
 def fetch_rankings(start_year, end_year):
-    """
-    Downloads Final AP Rankings for every year.
-    Returns: dict { (Team, Year): Rank }
-    """
-    print("   Downloading historical AP Polls...")
+    print("   Downloading historical rankings (FBS, FCS, D2, D3)...")
     client = get_api_client()
     api = cfbd.RankingsApi(client)
     
-    rank_map = {} # (Team, Year) -> Rank
+    # Store (Team, Year) -> {rank, poll_name}
+    rank_map = {} 
     
     for year in range(start_year, end_year + 1):
         print(f"      Fetching {year}...", end='\r')
         try:
-            # We want the final poll. 'postseason' often works, otherwise max week.
+            # We try 'postseason' first to get final rankings
             weeks = api.get_rankings(year=year, season_type='postseason')
             if not weeks:
-                # Fallback to regular season final if postseason missing
                 weeks = api.get_rankings(year=year, season_type='regular')
             
             if not weeks: continue
 
-            # Get the very last available poll for this year
+            # We look at the LAST available week
             final_week = weeks[-1]
             
-            # Find the AP Top 25
-            ap_poll = next((p for p in final_week.polls if p.poll == 'AP Top 25'), None)
-            if not ap_poll:
-                # Fallback to Coaches or whatever is there if AP missing (rare)
-                if final_week.polls: ap_poll = final_week.polls[0]
+            # Iterate through our Priority List to find the best available poll for each team
+            # Note: A year might have multiple polls (e.g., AP for FBS, FCS Coaches for FCS)
+            # We capture ALL of them.
             
-            if ap_poll:
-                for r in ap_poll.ranks:
-                    rank_map[(r.school, year)] = r.rank
+            available_polls = {p.poll: p for p in final_week.polls}
             
-            time.sleep(0.15) # Respect rate limits
+            for target_poll_name in POLL_PRIORITY:
+                if target_poll_name in available_polls:
+                    poll_data = available_polls[target_poll_name]
+                    
+                    for r in poll_data.ranks:
+                        key = (r.school, year)
+                        # Only set if not already set by a higher priority poll
+                        # (Though usually teams don't appear in multiple final polls across divisions)
+                        if key not in rank_map:
+                            rank_map[key] = {
+                                'rank': r.rank,
+                                'poll': target_poll_name
+                            }
+
+            time.sleep(0.15)
             
         except Exception as e:
             print(f"\n[WARN] Failed rankings for {year}: {e}")
@@ -88,31 +100,28 @@ def fetch_rankings(start_year, end_year):
 def main():
     print("BUILDING SEASON STATS DB...")
     
-    # 1. Load Games
     if not os.path.exists(GAMES_FILE):
         print("[ERROR] No games cache. Run main.py first.")
         return
     with open(GAMES_FILE, 'r') as f:
         games = json.load(f)
         
-    # 2. Calculate Win %
     records = calculate_records(games)
     
-    # 3. Fetch Rankings
-    # Determine year range from games
     years = [g['season'] for g in games]
+    if not years:
+        print("[ERROR] No games found.")
+        return
+        
     start_y, end_y = min(years), max(years)
     rankings = fetch_rankings(start_y, end_y)
     
-    # 4. Merge and Save
-    # Structure: Key = "Team|Year" (String key for JSON compatibility)
     final_db = {}
-    
     all_keys = set(records.keys()) | set(rankings.keys())
     
     for (team, year) in all_keys:
         rec = records.get((team, year), {'w': 0, 'l': 0, 't': 0})
-        rank = rankings.get((team, year), None)
+        rank_info = rankings.get((team, year), {'rank': None, 'poll': None})
         
         total_g = rec['w'] + rec['l'] + rec['t']
         win_pct = (rec['w'] / total_g) if total_g > 0 else 0.0
@@ -123,13 +132,14 @@ def main():
             'l': rec['l'],
             't': rec['t'],
             'pct': win_pct,
-            'rank': rank
+            'rank': rank_info['rank'],
+            'poll': rank_info['poll']
         }
         
     with open(STATS_FILE, 'w') as f:
         json.dump(final_db, f)
         
-    print(f"Saved stats for {len(final_db)} team-seasons to {STATS_FILE}")
+    print(f"DONE. Saved stats for {len(final_db)} team-seasons to {STATS_FILE}")
 
 if __name__ == "__main__":
     main()

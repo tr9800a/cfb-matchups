@@ -173,3 +173,21 @@ def get_team_filter(divisions):
         if t.get('classification') and t['classification'].lower() in divisions_lower:
             valid_set.add(t['school'])
     return valid_set
+
+def get_team_classification(team_name):
+    """
+    Returns the classification (fbs, fcs, ii, iii) for a team.
+    Relies on the most recent data in the cache.
+    """
+    # Load cache (you might want to store this in a global variable to avoid re-loading)
+    teams = load_teams_data()
+    
+    # Simple normalization for lookup
+    target = team_name.lower().strip()
+    
+    for t in teams:
+        if t['school'].lower().strip() == target:
+            cls = t.get('classification')
+            return cls.lower() if cls else 'unknown'
+            
+    return 'unknown'

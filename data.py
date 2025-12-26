@@ -9,11 +9,11 @@ import re
 from datetime import datetime
 
 # --- FILE PATHS ---
-TEAMS_CACHE_FILE = getattr(config, 'TEAMS_CACHE_FILE', 'cfb_teams_cache.json')
-GAMES_CACHE_FILE = getattr(config, 'CACHE_FILE', 'cfb_games_cache.json')
-MEMBERSHIP_FILE = 'membership_full.csv'
-LINEAGE_FILE = 'conference_lineage_and_aliases_enhanced.json'
-STATS_FILE = 'season_stats.json'
+TEAMS_CACHE_FILE = config.TEAMS_CACHE_FILE
+GAMES_CACHE_FILE = config.GAMES_FILE
+MEMBERSHIP_FILE = config.MEMBERSHIP_FILE
+LINEAGE_FILE = config.LINEAGE_FILE
+STATS_FILE = config.STATS_FILE
 
 def get_api_client():
     conf = cfbd.Configuration()

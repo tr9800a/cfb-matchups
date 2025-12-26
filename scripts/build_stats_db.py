@@ -6,8 +6,8 @@ import config
 from collections import defaultdict
 
 # --- CONFIG ---
-GAMES_FILE = getattr(config, 'CACHE_FILE', 'cfb_games_cache.json')
-STATS_FILE = 'season_stats.json'
+GAMES_FILE = config.GAMES_FILE
+STATS_FILE = config.STATS_FILE
 
 # Priority list of polls to capture (in order of prestige/relevance)
 POLL_PRIORITY = [

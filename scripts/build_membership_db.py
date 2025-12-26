@@ -2,11 +2,12 @@ import json
 import csv
 import os
 import re
+import config
 
 # --- CONFIG ---
-GAMES_FILE = 'cfb_games_cache.json'
-LINEAGE_FILE = 'conference_lineage_and_aliases_enhanced.json'
-OUTPUT_FILE = 'membership_full.csv'
+GAMES_FILE = config.GAMES_FILE
+LINEAGE_FILE = config.LINEAGE_FILE
+OUTPUT_FILE = config.MEMBERSHIP_FILE
 
 def load_json(filepath):
     if not os.path.exists(filepath):

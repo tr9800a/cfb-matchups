@@ -9,8 +9,8 @@ def build_graph(games_data, fbs_filter_set=None):
     should_filter = len(fbs_filter_set) > 0
 
     for g in games_data:
-        h = g['home']
-        a = g['away']
+        h = g['home_team']
+        a = g['away_team']
 
         if should_filter:
             if h not in fbs_filter_set or a not in fbs_filter_set:

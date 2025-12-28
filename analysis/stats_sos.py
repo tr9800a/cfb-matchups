@@ -1,7 +1,7 @@
 import data
 import utils
 
-def calculate_sos(G, team, start_year, end_year, non_conf_only, stats_db):
+def calculate_sos(G, team, start_year, end_year, non_conf_only, stats_db, start_week=None, end_week=None):
     if not G.has_node(team): return None
     opponents_faced = []
     weights = {'fbs': 1.0, 'fcs': 0.6, 'ii': 0.4, 'iii': 0.2, 'unknown': 0.5}
@@ -11,6 +11,8 @@ def calculate_sos(G, team, start_year, end_year, non_conf_only, stats_db):
         for g in history:
             year = g['season']
             if year < start_year or year > end_year: continue
+            if start_week is not None and g.get('week', 0) < start_week: continue
+            if end_week is not None and g.get('week', 99) > end_week: continue
             if non_conf_only:
                 if g.get('home_conf') and g.get('away_conf'):
                     if data.normalize_conf_name(g['home_conf']) == data.normalize_conf_name(g['away_conf']): continue

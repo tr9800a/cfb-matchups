@@ -24,7 +24,37 @@ def get_api_client():
 def load_games_data():
     if os.path.exists(GAMES_CACHE_FILE):
         with open(GAMES_CACHE_FILE, 'r') as f:
-            return json.load(f)
+            games = json.load(f)
+
+            # --- COMPATIBILITY PATCH ---
+            # The database now uses 'home_classification', 'home_team', etc.
+            # But older analysis scripts (stats_sor, etc.) expect 'home_division', 'home'.
+            # We map them here so we don't have to rewrite every script.
+            for g in games:
+                # 1. Restore 'home' and 'away' team names
+                if 'home_team' in g and 'home' not in g:
+                    g['home'] = g['home_team']
+                if 'away_team' in g and 'away' not in g:
+                    g['away'] = g['away_team']
+                
+                # 2. Map classification -> division
+                if 'home_classification' in g:
+                    g['home_division'] = g['home_classification']
+                elif 'home_division' not in g:
+                    g['home_division'] = None
+
+                if 'away_classification' in g:
+                    g['away_division'] = g['away_classification']
+                elif 'away_division' not in g:
+                    g['away_division'] = None
+                    
+                # 3. Map points -> score
+                if 'home_points' in g and 'home_score' not in g:
+                    g['home_score'] = g['home_points']
+                if 'away_points' in g and 'away_score' not in g:
+                    g['away_score'] = g['away_points']
+            
+            return games
     return [] 
 
 def load_lineage_data():

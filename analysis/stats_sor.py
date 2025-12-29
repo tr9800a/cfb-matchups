@@ -331,9 +331,14 @@ def print_sor_leaderboard(sor_data, start_year, end_year):
                     max_games = max(games_list)
                     median_games = sorted(games_list)[len(games_list) // 2]
                     
-                    # Use 50% of mean, but at least 30% of max, and at least 4 games
-                    # This balances inclusion with quality
-                    threshold = max(4, int(max(mean_games * 0.5, max_games * 0.3, median_games * 0.4)))
+                    # For lower tiers (5-8), be more lenient since they have less data
+                    # Use mean-based approach primarily, with max as a cap
+                    if tier >= 5:
+                        # Lower divisions: 40% of mean, but cap at 25% of max to avoid outliers
+                        threshold = max(3, int(min(mean_games * 0.4, max_games * 0.25, median_games * 0.5)))
+                    else:
+                        # Upper divisions: 50% of mean, but at least 30% of max
+                        threshold = max(4, int(max(mean_games * 0.5, max_games * 0.3, median_games * 0.4)))
                     tier_thresholds[tier] = threshold
         
         # 4. Apply tier-specific threshold

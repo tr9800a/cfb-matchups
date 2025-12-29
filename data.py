@@ -272,62 +272,119 @@ def get_team_membership_for_year(team_name, year):
     
     return (conference, classification)
 
-def get_last_regular_season_membership(team_name, start_year, end_year):
+# Cache for membership lookup tables (built once per date range)
+_membership_lookup_cache = {}
+_membership_lookup_range = None
+
+def build_last_season_membership_lookup(start_year, end_year):
     """
-    Returns the last available regular season conference and classification 
-    for a team within the designated range of seasons.
-    Returns (conference, classification, year) tuple, or (None, None, None) if not found.
+    Builds a lookup table mapping team -> (conference, classification, year)
+    for the last available regular season within the range.
+    This is much more efficient than calling get_last_regular_season_membership
+    repeatedly for each team.
+    Returns dict: {team_name: (conference, classification, year)}
     """
+    global _membership_lookup_cache, _membership_lookup_range
+    
+    # Check cache
+    cache_key = (start_year, end_year)
+    if cache_key == _membership_lookup_range and _membership_lookup_cache:
+        return _membership_lookup_cache
+    
+    # Build lookup table
+    lookup = {}
     df = load_membership_data()
     games = load_games_data()
     
-    # Find the latest year in range where team has regular season data
-    latest_year = None
-    latest_conf = None
-    latest_class = None
-    
-    # Check membership database for latest year
+    # Step 1: Build conference lookup from membership DB (most efficient)
+    conf_lookup = {}  # team -> {year: conference}
     if not df.empty:
-        mask = (df['school'] == team_name) & (df['year'] >= start_year) & (df['year'] <= end_year)
-        conf_rows = df[mask]
-        if not conf_rows.empty:
-            latest_row = conf_rows.sort_values('year', ascending=False).iloc[0]
-            latest_year = latest_row['year']
-            latest_conf = latest_row['conference_name']
-            if pd.isna(latest_conf) or latest_conf == '':
-                latest_conf = None
+        mask = (df['year'] >= start_year) & (df['year'] <= end_year)
+        for _, row in df[mask].iterrows():
+            team = row['school']
+            year = row['year']
+            conf = row['conference_name']
+            if pd.isna(conf) or conf == '':
+                conf = None
+            
+            if team not in conf_lookup:
+                conf_lookup[team] = {}
+            conf_lookup[team][year] = conf
     
-    # Check games data for latest regular season classification
+    # Step 2: Build classification lookup from games (one pass through games)
+    class_lookup = {}  # team -> {year: classification}
     for g in games:
         year = g.get('season')
         if year < start_year or year > end_year:
             continue
         if g.get('season_type') != 'regular':
             continue
-            
-        is_home = (g.get('home_team') == team_name or g.get('home') == team_name)
-        is_away = (g.get('away_team') == team_name or g.get('away') == team_name)
         
-        if is_home:
+        # Process home team
+        home_team = g.get('home_team') or g.get('home')
+        if home_team:
             cls = g.get('home_classification') or g.get('home_division')
             if cls:
-                if latest_year is None or year >= latest_year:
-                    latest_year = year
-                    latest_class = cls
-        elif is_away:
+                if home_team not in class_lookup:
+                    class_lookup[home_team] = {}
+                class_lookup[home_team][year] = cls
+        
+        # Process away team
+        away_team = g.get('away_team') or g.get('away')
+        if away_team:
             cls = g.get('away_classification') or g.get('away_division')
             if cls:
-                if latest_year is None or year >= latest_year:
-                    latest_year = year
-                    latest_class = cls
+                if away_team not in class_lookup:
+                    class_lookup[away_team] = {}
+                class_lookup[away_team][year] = cls
     
-    # If we found a year but no conference, try to get it from membership DB
-    if latest_year and not latest_conf:
-        mask = (df['school'] == team_name) & (df['year'] == latest_year)
-        conf_rows = df[mask]
-        if not conf_rows.empty:
-            latest_conf = conf_rows.iloc[0]['conference_name']
-            if pd.isna(latest_conf) or latest_conf == '':
-                latest_conf = None
+    # Step 3: Combine to find latest year for each team
+    all_teams = set(conf_lookup.keys()) | set(class_lookup.keys())
+    for team in all_teams:
+        # Find latest year from either source
+        latest_year = None
+        latest_conf = None
+        latest_class = None
+        
+        # Get latest year from conference data
+        if team in conf_lookup and conf_lookup[team]:
+            conf_years = [y for y in conf_lookup[team].keys() if conf_lookup[team][y] is not None]
+            if conf_years:
+                latest_conf_year = max(conf_years)
+                latest_year = latest_conf_year
+                latest_conf = conf_lookup[team][latest_conf_year]
+        
+        # Get latest year from classification data
+        if team in class_lookup and class_lookup[team]:
+            class_years = list(class_lookup[team].keys())
+            if class_years:
+                latest_class_year = max(class_years)
+                latest_class = class_lookup[team][latest_class_year]
+                if latest_year is None or latest_class_year > latest_year:
+                    latest_year = latest_class_year
+        
+        # If we have a year but no conference, try to get it
+        if latest_year and not latest_conf:
+            if team in conf_lookup and latest_year in conf_lookup[team]:
+                latest_conf = conf_lookup[team][latest_year]
+        
+        if latest_year:
+            lookup[team] = (latest_conf, latest_class, latest_year)
     
-    return (latest_conf, latest_class, latest_year)
+    # Cache the result
+    _membership_lookup_cache = lookup
+    _membership_lookup_range = cache_key
+    
+    return lookup
+
+def get_last_regular_season_membership(team_name, start_year, end_year):
+    """
+    Returns the last available regular season conference and classification 
+    for a team within the designated range of seasons.
+    Returns (conference, classification, year) tuple, or (None, None, None) if not found.
+    
+    NOTE: For performance, use build_last_season_membership_lookup() when
+    querying multiple teams, as it builds the lookup table once.
+    """
+    lookup = build_last_season_membership_lookup(start_year, end_year)
+    return lookup.get(team_name, (None, None, None))

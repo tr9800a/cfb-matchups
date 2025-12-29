@@ -147,7 +147,7 @@ def main():
         with st.expander("Advanced Filters"):
             include_postseason = st.checkbox("Include Postseason", False)
             non_conf_only = st.checkbox("Non-Conference Only", False)
-            week_range = st.slider("Week Range", 0, 20, (0, 16))
+            week_range = st.slider("Week Range", 0, 20, (0, 20), help="Games without week numbers are always included")
             divisions = st.multiselect("Divisions", ['fbs', 'fcs', 'ii', 'iii'], default=['fbs', 'fcs', 'ii', 'iii'])
             div_param = divisions if divisions else ['fbs']
 
@@ -179,7 +179,10 @@ def main():
                 
                 valid_data = []
                 if results:
-                    # 1. Determine tier membership based on LAST season in range
+                    # 1. Build membership lookup table once (much more efficient than per-team calls)
+                    membership_lookup = data.build_last_season_membership_lookup(start_year, end_year)
+                    
+                    # 2. Determine tier membership based on LAST season in range
                     # Each tier should be evaluated individually based on membership in the last filtered season
                     tier_teams = {t: [] for t in range(1, 9)}  # Teams that belong to each tier
                     team_tier_map = {}  # Cache tier assignments
@@ -187,8 +190,8 @@ def main():
                     for r in results:
                         team = r['team']
                         # Get last regular season membership for this team
-                        last_conf, last_class, last_year = data.get_last_regular_season_membership(
-                            team, start_year, end_year
+                        last_conf, last_class, last_year = membership_lookup.get(
+                            team, (None, None, None)
                         )
                         
                         if last_conf and last_class:
@@ -204,27 +207,48 @@ def main():
                             if tier in tier_teams:
                                 tier_teams[tier].append(r)
                     
-                    # 2. Calculate max games per tier (only for teams in that tier)
-                    tier_max_games = {}
+                    # 2. Calculate threshold per tier using mean activity (more inclusive than max-based)
+                    tier_thresholds = {}
+                    tier_stats = {}
                     for tier, team_results in tier_teams.items():
                         if team_results:
-                            tier_max_games[tier] = max(r['games'] for r in team_results)
+                            games_list = [r['games'] for r in team_results]
+                            if games_list:
+                                mean_games = sum(games_list) / len(games_list)
+                                max_games = max(games_list)
+                                median_games = sorted(games_list)[len(games_list) // 2]
+                                
+                                # Use 50% of mean, but at least 30% of max, and at least 4 games
+                                # This balances inclusion with quality
+                                threshold = max(4, int(max(mean_games * 0.5, max_games * 0.3, median_games * 0.4)))
+                                tier_thresholds[tier] = threshold
+                                tier_stats[tier] = {
+                                    'mean': int(mean_games),
+                                    'max': max_games,
+                                    'median': median_games,
+                                    'count': len(games_list)
+                                }
                     
-                    # 3. Apply tier-specific threshold (60% of leader for that tier)
+                    # 3. Apply tier-specific threshold
                     for r in results:
                         team = r['team']
                         tier = team_tier_map.get(team, r['tier'])
                         
-                        leader_games = tier_max_games.get(tier, 0)
-                        # Require 60% of the leader's volume for that specific tier
-                        threshold = max(4, int(leader_games * 0.6))
+                        threshold = tier_thresholds.get(tier, 4)  # Default to 4 if tier not found
                         
                         if r['games'] >= threshold:
                             # Update the tier in the result to match the determined tier
                             r['tier'] = tier
                             valid_data.append(r)
-                            
-                    st.caption(f"Applied Tier-Specific Thresholds (60% of leader per tier). e.g., P4 Leader: {tier_max_games.get(1,0)}, D3 Leader: {tier_max_games.get(7,0)}")
+                    
+                    # Show threshold info
+                    threshold_info = []
+                    for t in [1, 2, 3, 4, 5, 6, 7, 8]:
+                        if t in tier_stats:
+                            stats = tier_stats[t]
+                            threshold_info.append(f"T{t}: {tier_thresholds[t]} (mean={stats['mean']}, max={stats['max']}, n={stats['count']})")
+                    if threshold_info:
+                        st.caption(f"Applied Tier-Specific Thresholds (mean-based). {'; '.join(threshold_info)}")
                 
                 # 3. Sort & Rank the unified list
                 valid_data.sort(key=lambda x: x['sor'], reverse=True)

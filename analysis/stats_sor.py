@@ -109,13 +109,16 @@ def calculate_complex_sor(G, start_year, end_year, stats_db, target_team=None, s
     # PHASE 1: METADATA & SNAPSHOT LOGIC
     team_meta = {}
     
+    # Build membership lookup table once (much more efficient than calling per team)
+    membership_lookup = data.build_last_season_membership_lookup(start_year, end_year)
+    
     for team in G.nodes():
         confs = []
         div = 'unknown'
         
         # Get the last available regular season membership within the range
-        snapshot_conf, snapshot_div, snapshot_year = data.get_last_regular_season_membership(
-            team, start_year, end_year
+        snapshot_conf, snapshot_div, snapshot_year = membership_lookup.get(
+            team, (None, None, None)
         )
         
         # Also collect all conferences for calculation tier (historical average)
@@ -203,8 +206,12 @@ def calculate_complex_sor(G, start_year, end_year, stats_db, target_team=None, s
                 
                 for g in history:
                     if g['season'] < start_year or g['season'] > end_year: continue
-                    if start_week is not None and g.get('week', 0) < start_week: continue
-                    if end_week is not None and g.get('week', 99) > end_week: continue
+                    # Week filtering: if week is None/missing, include it (assume it's in range)
+                    # Only filter if week is explicitly set and outside range
+                    game_week = g.get('week')
+                    if game_week is not None:
+                        if start_week is not None and game_week < start_week: continue
+                        if end_week is not None and game_week > end_week: continue
                     
                     h_score = get_game_score(g, 'home')
                     a_score = get_game_score(g, 'away')
@@ -285,7 +292,10 @@ def print_sor_leaderboard(sor_data, start_year, end_year):
     valid_data = []
     
     if sor_data:
-        # 1. Determine tier membership based on LAST season in range
+        # 1. Build membership lookup table once (much more efficient)
+        membership_lookup = data.build_last_season_membership_lookup(start_year, end_year)
+        
+        # 2. Determine tier membership based on LAST season in range
         # Each tier should be evaluated individually based on membership in the last filtered season
         tier_teams = {t: [] for t in range(1, 9)}  # Teams that belong to each tier
         team_tier_map = {}  # Cache tier assignments
@@ -293,8 +303,8 @@ def print_sor_leaderboard(sor_data, start_year, end_year):
         for r in sor_data:
             team = r['team']
             # Get last regular season membership for this team
-            last_conf, last_class, last_year = data.get_last_regular_season_membership(
-                team, start_year, end_year
+            last_conf, last_class, last_year = membership_lookup.get(
+                team, (None, None, None)
             )
             
             if last_conf and last_class:
@@ -310,19 +320,28 @@ def print_sor_leaderboard(sor_data, start_year, end_year):
                 if tier in tier_teams:
                     tier_teams[tier].append(r)
         
-        # 2. Calculate max games per tier (only for teams in that tier)
-        tier_max_games = {}
+        # 3. Calculate threshold per tier using mean activity (more inclusive than max-based)
+        tier_thresholds = {}
         for tier, team_results in tier_teams.items():
             if team_results:
-                tier_max_games[tier] = max(r['games'] for r in team_results)
+                games_list = [r['games'] for r in team_results]
+                if games_list:
+                    # Use mean as baseline, but ensure we don't filter too aggressively
+                    mean_games = sum(games_list) / len(games_list)
+                    max_games = max(games_list)
+                    median_games = sorted(games_list)[len(games_list) // 2]
+                    
+                    # Use 50% of mean, but at least 30% of max, and at least 4 games
+                    # This balances inclusion with quality
+                    threshold = max(4, int(max(mean_games * 0.5, max_games * 0.3, median_games * 0.4)))
+                    tier_thresholds[tier] = threshold
         
-        # 3. Apply tier-specific threshold (60% of leader for that tier)
+        # 4. Apply tier-specific threshold
         for r in sor_data:
             team = r['team']
             tier = team_tier_map.get(team, r['tier'])
             
-            leader_games = tier_max_games.get(tier, 0)
-            threshold = max(4, int(leader_games * 0.6))
+            threshold = tier_thresholds.get(tier, 4)  # Default to 4 if tier not found
             
             if r['games'] >= threshold:
                 # Update the tier in the result to match the determined tier

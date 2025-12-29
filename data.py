@@ -221,3 +221,113 @@ def get_team_classification(team_name):
             return cls.lower() if cls else 'unknown'
             
     return 'unknown'
+
+def get_team_membership_for_year(team_name, year):
+    """
+    Returns the conference and classification for a team in a specific year.
+    Uses membership database for conference, and games data for classification.
+    Returns (conference, classification) tuple, or (None, None) if not found.
+    """
+    df = load_membership_data()
+    if df.empty:
+        return (None, None)
+    
+    # Get conference from membership database
+    mask = (df['school'] == team_name) & (df['year'] == year)
+    conf_rows = df[mask]
+    
+    conference = None
+    if not conf_rows.empty:
+        # Get the first match (should be unique)
+        conference = conf_rows.iloc[0]['conference_name']
+        if pd.isna(conference) or conference == '':
+            conference = None
+    
+    # Get classification from games data (for that year)
+    games = load_games_data()
+    classification = None
+    latest_season = -1
+    
+    for g in games:
+        if g.get('season') != year:
+            continue
+        # Only look at regular season games
+        if g.get('season_type') != 'regular':
+            continue
+            
+        # Check if this team is in the game
+        is_home = (g.get('home_team') == team_name or g.get('home') == team_name)
+        is_away = (g.get('away_team') == team_name or g.get('away') == team_name)
+        
+        if is_home:
+            cls = g.get('home_classification') or g.get('home_division')
+            if cls:
+                classification = cls
+                latest_season = year
+        elif is_away:
+            cls = g.get('away_classification') or g.get('away_division')
+            if cls:
+                classification = cls
+                latest_season = year
+    
+    return (conference, classification)
+
+def get_last_regular_season_membership(team_name, start_year, end_year):
+    """
+    Returns the last available regular season conference and classification 
+    for a team within the designated range of seasons.
+    Returns (conference, classification, year) tuple, or (None, None, None) if not found.
+    """
+    df = load_membership_data()
+    games = load_games_data()
+    
+    # Find the latest year in range where team has regular season data
+    latest_year = None
+    latest_conf = None
+    latest_class = None
+    
+    # Check membership database for latest year
+    if not df.empty:
+        mask = (df['school'] == team_name) & (df['year'] >= start_year) & (df['year'] <= end_year)
+        conf_rows = df[mask]
+        if not conf_rows.empty:
+            latest_row = conf_rows.sort_values('year', ascending=False).iloc[0]
+            latest_year = latest_row['year']
+            latest_conf = latest_row['conference_name']
+            if pd.isna(latest_conf) or latest_conf == '':
+                latest_conf = None
+    
+    # Check games data for latest regular season classification
+    for g in games:
+        year = g.get('season')
+        if year < start_year or year > end_year:
+            continue
+        if g.get('season_type') != 'regular':
+            continue
+            
+        is_home = (g.get('home_team') == team_name or g.get('home') == team_name)
+        is_away = (g.get('away_team') == team_name or g.get('away') == team_name)
+        
+        if is_home:
+            cls = g.get('home_classification') or g.get('home_division')
+            if cls:
+                if latest_year is None or year >= latest_year:
+                    latest_year = year
+                    latest_class = cls
+        elif is_away:
+            cls = g.get('away_classification') or g.get('away_division')
+            if cls:
+                if latest_year is None or year >= latest_year:
+                    latest_year = year
+                    latest_class = cls
+    
+    # If we found a year but no conference, try to get it from membership DB
+    if latest_year and not latest_conf:
+        mask = (df['school'] == team_name) & (df['year'] == latest_year)
+        conf_rows = df[mask]
+        if not conf_rows.empty:
+            latest_conf = conf_rows.iloc[0]['conference_name']
+            if pd.isna(latest_conf) or latest_conf == '':
+                latest_conf = None
+    
+    return (latest_conf, latest_class, latest_year)

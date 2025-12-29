@@ -3,7 +3,7 @@ import utils
 
 # --- TIER LABELS ---
 TIER_LABELS = {
-    1: "P4",       # Power 4 (FBS)
+    1: "P4",       # Power 4 (FBS) + Historical Major
     2: "G5",       # Group of 5 (FBS)
     3: "FCS Pwr",  # FCS Power Conferences
     4: "FCS Std",  # FCS Standard
@@ -18,64 +18,81 @@ TIER_DEFAULTS = {
     'fbs': 2, 'fcs': 4, 'ii': 6, 'iii': 8, 'unknown': 8
 }
 
-# Teams that are Tier 1 (P4) even if they are Independent
-# This prevents UMass/UConn from being T1, while keeping ND/1980s Miami T1.
 POWER_INDEPENDENTS = {
     'Notre Dame', 'Penn State', 'Miami', 'Florida State', 'Syracuse', 
     'Pittsburgh', 'Boston College', 'West Virginia', 'Virginia Tech', 
-    'South Carolina', 'BYU'
+    'South Carolina', 'BYU', 'Louisville'
 }
 
 CONF_TIER_MAP = {
-    # --- TIER 1: POWER 4 ---
-    'SEC': 1, 'Big Ten': 1, 'Big 12': 1, 'ACC': 1, 'Pac-12': 1,
-    'Southeastern Conference': 1, 'Big Ten Conference': 1, 'Atlantic Coast Conference': 1,
-    'Pac-10': 1, 'SWC': 1, 'Big Eight': 1, 
-    # Note: 'FBS Independents' is now handled via default + name check
+    # --- TIER 1: MODERN POWER 4 ---
+    'SEC': 1, 'Southeastern': 1, 'Southeastern Conference': 1,
+    'Big Ten': 1, 'Big Ten Conference': 1, 
+    'Big 12': 1, 'Big 12 Conference': 1, 'Big XII': 1,
+    'ACC': 1, 'Atlantic Coast': 1, 'Atlantic Coast Conference': 1,
+    'Pac-12': 1, 'Pac-12 Conference': 1, 'Pacific-12': 1, 'Pacific-12 Conference': 1,
     
-    # --- TIER 2: G5 ---
+    # --- TIER 1: HISTORICAL PACIFIC LINEAGE ---
+    'Pac-10': 1, 'Pacific-10': 1,
+    'Pac-8': 1, 'Pacific-8': 1,
+    'AAWU': 1, 'Athletic Association of Western Universities': 1,
+    'PCC': 1, 'Pacific Coast Conference': 1,
+    
+    # --- TIER 1: HISTORICAL BIG 12/SWC LINEAGE ---
+    'Big Eight': 1, 'Big 8': 1, 'Big 8 Conference': 1, 'Big Eight Conference': 1,
+    'Big Seven': 1, 'Big 7': 1, 'Big 7 Conference': 1, 'Big Seven Conference': 1,
+    'Big Six': 1, 'Big 6': 1, 'Big 6 Conference': 1, 'Big Six Conference': 1,
+    'SWC': 1, 'Southwest Conference': 1, 'Southwest': 1,
+    
+    # --- TIER 1: HISTORICAL BIG TEN LINEAGE ---
+    'Western Conference': 1, 'Big Nine': 1,
+    
+    # --- TIER 1: EASTERN POWER ---
+    'Big East': 1, # (1991-2012 Football Power)
+    
+    # --- TIER 2: MODERN G5 ---
     'American Athletic': 2, 'Mountain West': 2, 'Sun Belt': 2, 'MAC': 2, 'Conference USA': 2,
-    'Mid-American': 2, 'FBS Independents': 2, # Default Independents to G5
+    'Mid-American': 2, 'FBS Independents': 2,
+    
+    # --- TIER 2: HISTORICAL MID-MAJORS ---
+    'WAC': 2, 'Western Athletic': 2,
+    'Border': 2, 'Border Conference': 2,
+    'Skyline': 2, 'Mountain States': 2,
+    'PCAA': 2, 'Big West': 2,
+    'Missouri Valley': 2, 
     
     # --- TIER 3: FCS POWER ---
-    'Missouri Valley': 3, 'MVFC': 3, 'Big Sky': 3, 'CAA': 3, 'Colonial': 3, 
+    'MVFC': 3, 'Big Sky': 3, 'CAA': 3, 'Colonial': 3, 
     'Southern': 3, 'SoCon': 3, 'Southland': 3, 'Ivy': 3,
+    'Southwestern Athletic': 4, 'SWAC': 4, # Protect against "Southwest" matching SWAC
     
     # --- TIER 5: D2 POWER ---
     'GLIAC': 5, 'Gulf South': 5, 'MIAA': 5, 'PSAC': 5, 'Lone Star': 5,
     
-    # --- TIER 7/8: D3 POWER & OTHERS ---
-    'WIAC': 7, 'OAC': 7, 'American Southwest': 7, 'CCIW': 7,
-    'NACC': 8, 'NEWMAC': 8, 
-    'Centennial': 7, 'Empire 8': 7, 'NJAC': 8, 'ODAC': 8, 'Liberty League': 8
+    # --- TIER 7: D3 POWER ---
+    'WIAC': 7, 'OAC': 7, 'American Southwest': 7, 'CCIW': 7, 'Centennial': 7, 'Empire 8': 7,
+    'NACC': 8, 'NEWMAC': 8, 'NJAC': 8, 'ODAC': 8, 'Liberty League': 8
 }
 
-# STARTING STRENGTH (Pass 0)
-TIER_WEIGHTS = {
-    1: 1.0, 2: 0.8, 3: 0.6, 4: 0.4, 5: 0.3, 6: 0.2, 7: 0.15, 8: 0.05
-}
-
-# TIER BASELINE PENALTY
-TIER_PENALTIES = {
-    1: 0, 2: -15, 3: -45, 4: -65, 5: -85, 6: -105, 7: -125, 8: -145
-}
+TIER_WEIGHTS = {1: 1.0, 2: 0.8, 3: 0.6, 4: 0.4, 5: 0.3, 6: 0.2, 7: 0.15, 8: 0.05}
+TIER_PENALTIES = {1: 0, 2: -15, 3: -45, 4: -65, 5: -85, 6: -105, 7: -125, 8: -145}
 
 def get_team_tier(team_name, conf, div):
     # 1. Historical Power Independent Check
-    if conf == 'FBS Independents' or conf == 'Independent':
+    if conf in ['FBS Independents', 'Independent', 'Ind']:
         if team_name in POWER_INDEPENDENTS:
             return 1
-    
-    # 2. Modern Notre Dame Override (Always T1)
     if team_name == 'Notre Dame': return 1
-
-    # 3. Pac-2 Override (2024+)
+    # 2. Pac-2 Override (Modern)
     if team_name in ['Oregon State', 'Washington State'] and div == 'fbs': return 2
     
     if conf:
+        # Check Exact Match First (Fastest/Safest)
         if conf in CONF_TIER_MAP: return CONF_TIER_MAP[conf]
-        # Partial match safety check
-        unsafe_keys = {'ACC', 'MAC', 'SEC', 'CAA', 'OAC'} 
+        
+        # Check Partial Match
+        # We explicitly skip short keys that might false-match (like 'ACC' in 'NACC')
+        unsafe_keys = {'ACC', 'MAC', 'SEC', 'CAA', 'OAC', 'SWC'} 
         for k, tier in CONF_TIER_MAP.items():
             if k in unsafe_keys: continue 
             if k in conf: return tier
@@ -89,27 +106,56 @@ def get_game_score(g, side):
         return g.get('away_points') if g.get('away_points') is not None else g.get('away_score')
 
 def calculate_complex_sor(G, start_year, end_year, stats_db, target_team=None, start_week=None, end_week=None):
-    label = f"Team: {target_team}" if target_team else "Global Leaderboard"
-    print(f"   [SOR] Analyzing {G.number_of_edges()} games ({label})...", end='\r')
-    
-    # PHASE 1: METADATA
+    # PHASE 1: METADATA & SNAPSHOT LOGIC
     team_meta = {}
+    
     for team in G.nodes():
         confs = []
         div = 'unknown'
+        
+        # Get the last available regular season membership within the range
+        snapshot_conf, snapshot_div, snapshot_year = data.get_last_regular_season_membership(
+            team, start_year, end_year
+        )
+        
+        # Also collect all conferences for calculation tier (historical average)
         for nbr in G.neighbors(team):
             for g in G[team][nbr]['history']:
-                if start_year <= g['season'] <= end_year:
+                season = g['season']
+                
+                if start_year <= season <= end_year:
+                    # Update "Ground Truth" list (for calculation average)
                     if g.get('home_team') == team or g.get('home') == team:
-                        confs.append(g.get('home_conference'))
-                        if g.get('home_classification'): div = g.get('home_classification')
+                        c = g.get('home_conference')
+                        d = g.get('home_classification') or g.get('home_division')
+                        if c: confs.append(c)
+                        if d: div = d
                     else:
-                        confs.append(g.get('away_conference'))
-                        if g.get('away_classification'): div = g.get('away_classification')
+                        c = g.get('away_conference')
+                        d = g.get('away_classification') or g.get('away_division')
+                        if c: confs.append(c)
+                        if d: div = d
         
+        # A. Calculation Tier (Historical Average for Maths)
         primary_conf = max(set(confs), key=confs.count) if confs else "Unknown"
-        tier = get_team_tier(team, primary_conf, div)
-        team_meta[team] = {'div': div, 'conf': primary_conf, 'tier': tier}
+        calculation_tier = get_team_tier(team, primary_conf, div)
+        
+        # B. Display Tier (The "As Of Now" Label - based on last available regular season)
+        if snapshot_conf and snapshot_div:
+            display_tier = get_team_tier(team, snapshot_conf, snapshot_div)
+        elif snapshot_conf:
+            # Have conference but no classification, use default for classification
+            display_tier = get_team_tier(team, snapshot_conf, div if div != 'unknown' else 'fbs')
+        else:
+            # Fallback to calculation tier if no snapshot found
+            display_tier = calculation_tier
+
+        team_meta[team] = {
+            'div': snapshot_div if snapshot_div else div, 
+            'conf': snapshot_conf if snapshot_conf else primary_conf, 
+            'calc_tier': calculation_tier, 
+            'display_tier': display_tier   
+        }
 
     # PHASE 2: RECURSIVE SCORING
     current_ratings = {}
@@ -130,14 +176,13 @@ def calculate_complex_sor(G, start_year, end_year, stats_db, target_team=None, s
                     if start_year <= g['season'] <= end_year: has_game = True
                 if not has_game: continue
 
+                # Use CALCULATION TIER for opponent strength
                 if i == 0:
-                    val = TIER_WEIGHTS.get(team_meta[nbr]['tier'], 0.1)
+                    val = TIER_WEIGHTS.get(team_meta[nbr]['calc_tier'], 0.1)
                 else:
                     prev_sor = current_ratings.get(nbr, 0)
                     val = max(0.01, min(1.0, (prev_sor + 50) / 150.0))
-                
                 opp_values.append(val)
-            
             team_strength_map[team] = sum(opp_values) / len(opp_values) if opp_values else 0.0
 
         # B. GAME GRADING
@@ -150,12 +195,11 @@ def calculate_complex_sor(G, start_year, end_year, stats_db, target_team=None, s
             game_grades = []
             detailed_games = []
             wins=0; losses=0; ties=0; point_diff=0
-            
-            my_tier = team_meta[team]['tier']
+            my_calc_tier = team_meta[team]['calc_tier']
             
             for nbr in G.neighbors(team):
                 history = G[team][nbr]['history']
-                opp_tier = team_meta[nbr]['tier']
+                opp_calc_tier = team_meta[nbr]['calc_tier']
                 
                 for g in history:
                     if g['season'] < start_year or g['season'] > end_year: continue
@@ -181,19 +225,15 @@ def calculate_complex_sor(G, start_year, end_year, stats_db, target_team=None, s
                     perf_ratio = 50 + (capped_margin * (50/28))
                     
                     opp_strength = team_strength_map.get(nbr, 0.1)
-                    tier_diff = opp_tier - my_tier
+                    tier_diff = opp_calc_tier - my_calc_tier
                     game_value_mult = 1.0
                     
                     if margin > 0:
-                        if tier_diff > 0: # I am better
-                            game_value_mult = max(0.1, 1.0 - (tier_diff * 0.12))
-                        elif tier_diff < 0: # I am worse
-                            game_value_mult = 1.0 + (abs(tier_diff) * 0.3)
+                        if tier_diff > 0: game_value_mult = max(0.1, 1.0 - (tier_diff * 0.12))
+                        elif tier_diff < 0: game_value_mult = 1.0 + (abs(tier_diff) * 0.3)
                     else:
-                        if tier_diff < 0: # I lost to better team
-                            game_value_mult = max(0.5, 1.0 - (abs(tier_diff) * 0.1))
-                        elif tier_diff > 0: # I lost to worse team
-                            game_value_mult = 1.0 + (tier_diff * 0.5)
+                        if tier_diff < 0: game_value_mult = max(0.5, 1.0 - (abs(tier_diff) * 0.1))
+                        elif tier_diff > 0: game_value_mult = 1.0 + (tier_diff * 0.5)
 
                     loc_mult = 1.1 if (not is_home and margin > 0) else 1.0
                     
@@ -205,7 +245,7 @@ def calculate_complex_sor(G, start_year, end_year, stats_db, target_team=None, s
                     game_grades.append(final_grade)
                     
                     if target_team and is_final_pass:
-                        t_label = TIER_LABELS.get(opp_tier, f"T{opp_tier}")
+                        t_label = TIER_LABELS.get(opp_calc_tier, f"T{opp_calc_tier}")
                         detailed_games.append({
                             'opp': nbr, 'year': g['season'],
                             'result': f"{'W' if us>them else 'L'} {us}-{them}",
@@ -215,7 +255,7 @@ def calculate_complex_sor(G, start_year, end_year, stats_db, target_team=None, s
 
             if game_grades:
                 avg_sor = sum(game_grades) / len(game_grades)
-                tier_penalty = TIER_PENALTIES.get(my_tier, -145) 
+                tier_penalty = TIER_PENALTIES.get(my_calc_tier, -145) 
                 total_score = avg_sor + tier_penalty
                 
                 pass_results.append({
@@ -224,7 +264,7 @@ def calculate_complex_sor(G, start_year, end_year, stats_db, target_team=None, s
                     'games': len(game_grades), 
                     'w': wins, 'l': losses, 't': ties,
                     'diff': point_diff,
-                    'tier': my_tier,
+                    'tier': team_meta[team]['display_tier'], 
                     'div': team_meta[team]['div'],
                     'details': detailed_games
                 })
@@ -241,18 +281,66 @@ def print_sor_leaderboard(sor_data, start_year, end_year):
     # 1. Sort
     sor_data.sort(key=lambda x: x['sor'], reverse=True)
     
-    # 2. Assign Rank (First step!)
+    # 2. Dynamic GRADUATED Filtering (Per Tier)
+    valid_data = []
+    
+    if sor_data:
+        # 1. Determine tier membership based on LAST season in range
+        # Each tier should be evaluated individually based on membership in the last filtered season
+        tier_teams = {t: [] for t in range(1, 9)}  # Teams that belong to each tier
+        team_tier_map = {}  # Cache tier assignments
+        
+        for r in sor_data:
+            team = r['team']
+            # Get last regular season membership for this team
+            last_conf, last_class, last_year = data.get_last_regular_season_membership(
+                team, start_year, end_year
+            )
+            
+            if last_conf and last_class:
+                # Determine which tier this team belongs to based on last season
+                tier = get_team_tier(team, last_conf, last_class)
+                team_tier_map[team] = tier
+                if tier in tier_teams:
+                    tier_teams[tier].append(r)
+            else:
+                # Fallback: use tier from calculation (historical average)
+                tier = r['tier']
+                team_tier_map[team] = tier
+                if tier in tier_teams:
+                    tier_teams[tier].append(r)
+        
+        # 2. Calculate max games per tier (only for teams in that tier)
+        tier_max_games = {}
+        for tier, team_results in tier_teams.items():
+            if team_results:
+                tier_max_games[tier] = max(r['games'] for r in team_results)
+        
+        # 3. Apply tier-specific threshold (60% of leader for that tier)
+        for r in sor_data:
+            team = r['team']
+            tier = team_tier_map.get(team, r['tier'])
+            
+            leader_games = tier_max_games.get(tier, 0)
+            threshold = max(4, int(leader_games * 0.6))
+            
+            if r['games'] >= threshold:
+                # Update the tier in the result to match the determined tier
+                r['tier'] = tier
+                valid_data.append(r)
+        
+        print(f"\n[SOR] TOP-TO-BOTTOM RANKING ({start_year}-{end_year})")
+        print(f"      System: 8-Tier Hierarchy (Tier-Adjusted Thresholds Applied)")
+    else:
+        print("[SOR] No data found.")
+
+    # 3. Assign Rank (AFTER Filtering)
     rank = 1
-    for r in sor_data:
+    for r in valid_data:
         r['rank'] = rank
         rank += 1
-        
-    # 3. Filter for display
-    valid_data = [x for x in sor_data if x['games'] >= 6]
     
-    print(f"\n[SOR] TOP-TO-BOTTOM RANKING ({start_year}-{end_year})")
-    print(f"      System: 8-Tier Hierarchy (Tier Penalty Applied)")
-    print("="*90)
+    print("="*105)
     
     # --- TIER EXTREMES SECTION ---
     tier_groups = {}
@@ -273,7 +361,6 @@ def print_sor_leaderboard(sor_data, start_year, end_year):
         worst = teams[-1]
         t_label = TIER_LABELS.get(t, f"T{t}")
         
-        # New Format: Team (W-L)
         best_name = f"{best['team']} ({best['w']}-{best['l']})"
         worst_name = f"{worst['team']} ({worst['w']}-{worst['l']})"
         
